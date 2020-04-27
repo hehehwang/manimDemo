@@ -12,64 +12,59 @@ class MCKsystem_n:
         # data variable
         self.delta_t = delta_t
         self.offset = offset
-        self.data = []
+        self.data = self.initiate_data_by_offset()
 
     def get_x_ddot(self, x, x_dot):
         return -self.K / self.M * x - self.C / self.M * x_dot
 
+    def initiate_data_by_offset(self):
+        # x_dat, x_dot_dat, x_ddot_dat = [], [], []
+        dat = []
+        offset = self.offset
+        x = self.x_0
+        x_dot = self.x_dot_0
+
+        if abs(x) <= offset:
+            raise NotImplementedError
+        # calculation phase
+        while True:
+            x_ddot = self.get_x_ddot(x, x_dot)
+            x_dot += x_ddot * self.delta_t
+            x += x_dot * self.delta_t
+
+            dat.append([x, x_dot, x_ddot])
+
+            if abs(x) < offset and abs(x_dot) < offset: break
+
+        return dat
+
     def get_data_by_offset(self, offset=None):
-        # ITF: return data in
-        # [[x, xdot, xddot],
-        #  [x, xdot, xddot],
-        #         ...
-        #  [x, xdot, xddot]]
-        #
-
-        if not self.data:
-            if offset is None:
-                offset = self.offset
-            # x_dat, x_dot_dat, x_ddot_dat = [], [], []
-            dat = []
-            offset = self.offset
-            x = self.x_0
-            x_dot = self.x_dot_0
-
-            if abs(x) <= offset:
-                raise NotImplementedError
-            # calculation phase
-            while True:
-                x_ddot = self.get_x_ddot(x, x_dot)
-                x_dot += x_ddot * self.delta_t
-                x += x_dot * self.delta_t
-
-                dat.append([x, x_dot, x_ddot])
-
-                if abs(x) < offset and abs(x_dot) < offset: break
-
-            self.data = dat
-            return dat
-        else:
-            return self.data
+        return self.data
 
     def get_x(self, t):
         # ITF: Return values from system in int format
         # This function tries to behave like contiunuous function
         # Just like func(t)
-        if not self.data:
-            self.data = self.get_data_by_offset()
-            # now this data_raw will have PLAYTIME/DELTA_T sets of datum
-            # i.e. [[1,2,3], [4,5,6], ... [9,9,9]]
-            # each index of data should multiplied with DELTA_T to get proper value
-            # or, input time value should be divided with DELTA_T to access with index
+        # now this data_raw will have PLAYTIME/DELTA_T sets of datum
+        # i.e. [[1,2,3], [4,5,6], ... [9,9,9]]
+        # each index of data should multiplied with DELTA_T to get proper value
+        # or, input time value should be divided with DELTA_T to access with index
         multiplier = round(self.delta_t ** -1)  # round for preventing float error
         return self.data[int(multiplier * t)][0]
 
     def get_datum(self, t):
         # ITF: Return value in [x, xdot, xddot] format, in same way as get_x function
-        if not self.data:
-            self.data = self.get_data_by_offset()
         multiplier = round(self.delta_t ** -1)  # round for preventing float error
         return self.data[int(multiplier * t)]
+
+    def get_x_data(self):
+        return tuple(zip(*self.data))[0]
+
+    def get_xdot_data(self):
+        return tuple(zip(*self.data))[1]
+
+    def get_xddot_data(self):
+        return tuple(zip(*self.data))[2]
 
 
 class XVsTAxes(Axes):
@@ -94,9 +89,10 @@ class XVsTAxes(Axes):
         },
     }
 
-    def __init__(self, **kwargs):
+    def __init__(self, playspeed, **kwargs):
         super().__init__(**kwargs)
         self.add_labels()
+        self.playspeed = playspeed
 
     def add_axes(self):
         self.axes = Axes(**self.axes_config)
@@ -110,7 +106,7 @@ class XVsTAxes(Axes):
         t_label.next_to(x_axis.get_right(), UP, MED_SMALL_BUFF)
         x_axis.label = t_label
         x_axis.add(t_label)
-        y_label = self.y_label = TexMobject("x(t)")
+        y_label = self.y_label = TexMobject("x(t)").scale(0.8)
         y_label.next_to(y_axis.get_top(), UP, SMALL_BUFF)
         y_axis.label = y_label
         y_axis.add(y_label)
@@ -119,34 +115,35 @@ class XVsTAxes(Axes):
         self.x_axis_label = t_label
 
         x_axis.add_numbers()
-        y_axis.add(self.get_y_axis_coordinates(y_axis))
+        y_axis.add_numbers()
+        # y_axis.add(self.get_y_axis_coordinates(y_axis))
 
-    def get_y_axis_coordinates(self, y_axis):
-        # texs = [
-        #     # "\\pi \\over 4",
-        #     # "\\pi \\over 2",
-        #     # "3 \\pi \\over 4",
-        #     # "\\pi",
-        #     "\\pi / 4",
-        #     "\\pi / 2",
-        #     "3 \\pi / 4",
-        #     "\\pi",
-        # ]
-        texs = [str(_) for _ in range(0, 10, 1)]
-        values = np.arange(0, 10, 1)
-        labels = VGroup()
-        for pos_tex, pos_value in zip(texs, values):
-            neg_tex = "-" + pos_tex
-            neg_value = -1 * pos_value
-            for tex, value in (pos_tex, pos_value), (neg_tex, neg_value):
-                if value > self.y_max or value < self.y_min:
-                    continue
-                symbol = TexMobject(tex)
-                symbol.scale(0.5)
-                point = y_axis.number_to_point(value)
-                symbol.next_to(point, LEFT, MED_SMALL_BUFF)
-                labels.add(symbol)
-        return labels
+    # def get_y_axis_coordinates(self, y_axis):
+    #     # texs = [
+    #     #     # "\\pi \\over 4",
+    #     #     # "\\pi \\over 2",
+    #     #     # "3 \\pi \\over 4",
+    #     #     # "\\pi",
+    #     #     "\\pi / 4",
+    #     #     "\\pi / 2",
+    #     #     "3 \\pi / 4",
+    #     #     "\\pi",
+    #     # ]
+    #     texs = [str(_) for _ in range(0, 10, 1)]
+    #     values = np.arange(0, 10, 1)
+    #     labels = VGroup()
+    #     for pos_tex, pos_value in zip(texs, values):
+    #         neg_tex = "-" + pos_tex
+    #         neg_value = -1 * pos_value
+    #         for tex, value in (pos_tex, pos_value), (neg_tex, neg_value):
+    #             if value > self.y_max or value < self.y_min:
+    #                 continue
+    #             symbol = TexMobject(tex)
+    #             symbol.scale(0.5)
+    #             point = y_axis.number_to_point(value)
+    #             symbol.next_to(point, LEFT, MED_SMALL_BUFF)
+    #             labels.add(symbol)
+    #     return labels
 
     def get_live_drawn_graph(self, system,
                              t_max=None,
@@ -164,6 +161,7 @@ class XVsTAxes(Axes):
         graph.time_of_last_addition = 0
 
         def update_graph(graph, dt):
+            dt = dt*self.playspeed
             graph.time += dt
             if graph.time > t_max:
                 graph.remove_updater(update_graph)
@@ -185,13 +183,13 @@ class XVsTAxes(Axes):
 class MKS_Simulation_v2(Scene):
     CONFIG = {
         # data
-        "MCK": [10, 4, 10],
+        "MCK": [10, 6, 10],
         "INIT": [5, 0],
         "DELTA_T": 0.0001,
         "DATA_RAW": [],  # for cpu saving
         # animation
-        "REST_POS_OFFSET": 0.01,
-        "PLAY_SPEED_MULT": 2,
+        "REST_POS_OFFSET": 0.1,
+        "PLAY_SPEED": 4,
         "PLAY_TIME": 0,
         # regulation
         "X_REG_SCALE": 4,
@@ -204,9 +202,9 @@ class MKS_Simulation_v2(Scene):
             "x_max": 10,
             "x_axis_config": {
                 "tick_frequency": 1,
-                "unit_size": 0.25,
+                "unit_size": 0.5,
             },
-            "y_min": -2,
+            "y_min": -5,
             "y_max": 5,
             "y_axis_config": {
                 "tick_frequency": 1,
@@ -224,23 +222,27 @@ class MKS_Simulation_v2(Scene):
             },
         },
         "axes_corner": UL,
+        "axes_edge": UP,
     }
 
     def construct(self):
         mass = Square()
-        self.add(mass)
 
         # value = ValueTracker(self.MCKfunc(0))
         mck_system = MCKsystem_n(self.DELTA_T, self.MCK, self.INIT, self.REST_POS_OFFSET)
 
-        # graph
-        axes = XVsTAxes(**self.axes_config)
-        axes.center()
-        axes.to_corner(self.axes_corner, buff=SMALL_BUFF)
-        graph = axes.get_live_drawn_graph(mck_system)
+        # initiate config value
+        self.PLAY_TIME = int(len(mck_system.get_data_by_offset()) * self.DELTA_T / self.PLAY_SPEED)
+        self.axes_config['x_max'] = self.PLAY_TIME * self.PLAY_SPEED + LARGE_BUFF
+        self.axes_config['y_max'] = max(mck_system.get_x_data()) + LARGE_BUFF
+        self.axes_config['y_min'] = min(mck_system.get_x_data()) - LARGE_BUFF
 
-        # playtime
-        # self.PLAY_TIME =
+        # graph
+        axes = XVsTAxes(self.PLAY_SPEED, **self.axes_config)
+        axes.center()
+        # axes.to_corner(self.axes_corner, buff=SMALL_BUFF)
+        axes.to_edge(self.axes_edge, buff=SMALL_BUFF)
+        graph = axes.get_live_drawn_graph(mck_system)
 
         def frame_idx():
             i = 0
@@ -249,11 +251,13 @@ class MKS_Simulation_v2(Scene):
                 i += 1
         idx = frame_idx()
         def update_mass(obj, dt):
-            obj.move_to(np.array([mck_system.get_x(dt * next(idx))/3, 0, 0]))
+            move_point = mck_system.get_x(dt * next(idx) * self.PLAY_SPEED)/2
+            obj.move_to(np.array([move_point, 0, 0]))
 
+        self.add(mass)
         mass.add_updater(update_mass)
         self.add(axes, graph)
-        self.wait(10)
+        self.wait(self.PLAY_TIME)
 
 
 
