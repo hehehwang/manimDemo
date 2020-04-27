@@ -110,7 +110,9 @@ class XVsTAxes(Axes):
         t_label.next_to(x_axis.get_right(), UP, MED_SMALL_BUFF)
         x_axis.label = t_label
         x_axis.add(t_label)
-        y_label = self.y_label = TexMobject("x,\\, \\dot{x},\\, \\ddot{x}").scale(0.8)
+        y_label = self.y_label = TexMobject("x", ",\\,", "\\dot{x}", ",\\,", "\\ddot{x}").scale(0.8)
+        y_label[2].set_color(BLUE_C)
+        y_label[4].set_color(RED_C)
         y_label.next_to(y_axis.get_top(), UP, SMALL_BUFF)
         y_axis.label = y_label
         y_axis.add(y_label)
@@ -124,7 +126,7 @@ class XVsTAxes(Axes):
         y_axis.add(self.get_y_axis_coordinates(y_axis))
 
     def get_x_axis_coordinates(self, x_axis):
-        xmax, xmin = round(self.x_max)+1, 0
+        xmax, xmin = round(self.x_max) + 1, 0
         texs = [str(_) for _ in range(xmin, xmax, self.x_label_frequency)]
         values = np.arange(xmin, xmax, self.x_label_frequency)
         labels = VGroup()
@@ -137,7 +139,7 @@ class XVsTAxes(Axes):
         return labels
 
     def get_y_axis_coordinates(self, y_axis):
-        ymax, ymin = round(self.y_max+0.9), round(self.y_min-0.9)
+        ymax, ymin = round(self.y_max + 0.9), round(self.y_min - 0.9)
         texs = [str(_) for _ in range(ymin, ymax, self.y_label_frequency)]
         values = np.arange(ymin, ymax, self.y_label_frequency)
         labels = VGroup()
@@ -148,7 +150,6 @@ class XVsTAxes(Axes):
             symbol.next_to(point, LEFT, MED_SMALL_BUFF)
             labels.add(symbol)
         return labels
-
 
     # def get_y_axis_coordinates(self, y_axis):
     #     # texs = [
@@ -186,6 +187,7 @@ class XVsTAxes(Axes):
             t_max = self.x_max
 
         graph = VMobject()
+        style['stroke_color'] = WHITE  # XCOLOR
         graph.set_style(**style)
 
         graph.all_coords = [(0, system.get_x(0))]
@@ -220,7 +222,7 @@ class XVsTAxes(Axes):
             t_max = self.x_max
 
         graph = VMobject()
-        style['stroke_color'] = BLUE  # ##
+        style['stroke_color'] = BLUE_E  # VCOLOR
         graph.set_style(**style)
 
         graph.all_coords = [(0, system.get_xdot(0))]
@@ -255,7 +257,7 @@ class XVsTAxes(Axes):
             t_max = self.x_max
 
         graph = VMobject()
-        style['stroke_color'] = RED  # ##
+        style['stroke_color'] = RED_E  # ACOLOR
         graph.set_style(**style)
 
         graph.all_coords = [(0, system.get_xddot(0))]
@@ -285,26 +287,31 @@ class XVsTAxes(Axes):
 class MCK_Simulation_v2(Scene):
     CONFIG = {
         # data
-        "MCK": [10, 4, 10],
-        "INIT": [5, 0],
+        "MCK": [10, 6, 10],
+        "INIT": [5, -1],
         "DELTA_T": 0.0001,
         "DATA_RAW": [],  # for cpu saving
         # animation
-        "REST_POS_OFFSET": 0.05,
-        "PLAY_SPEED": 4,
+        "REST_POS_OFFSET": 0.1,
+        "PLAY_SPEED": 2,
         "PLAY_TIME": 0,
         # regulation
         "X_REG_SCALE": 4,
         "X_REG_OFFSET": 0,
         "VA_REG_SCALE": 3,
         "VA_REG_OFFSET": 0,
+        # colors
+        "COLOR_INDICATOR": LIGHT_GRAY,
+        "COLOR_MASS": GREEN_E,
+        "COLOR_SPRING": TEAL_E,
+        "COLOR_DAMPER": YELLOW_E,
         # graph
         "axes_config": {
             "x_min": 0,
             "x_max": 10,
             "x_axis_config": {
                 "tick_frequency": 1,
-                "unit_size": 0.2,
+                "unit_size": 0.8,
             },
             "y_min": -5,
             "y_max": 5,
@@ -319,7 +326,7 @@ class MCK_Simulation_v2(Scene):
             },
             "graph_style": {
                 "stroke_color": WHITE,
-                "stroke_width": 3,
+                "stroke_width": 5,
                 "fill_opacity": 0,
             },
             "x_label_frequency": 2,
@@ -352,31 +359,37 @@ class MCK_Simulation_v2(Scene):
         graph_xddot = axes.get_live_drawn_graph_xddot(mck_system)
 
         # Generate Objects
-        indicator = Line(1.5 * UP, 1.5 * DOWN)
-        mass = Square(fill_color=DARK_GRAY,
-                      fill_opacity=1)
+        indicator = Line(1.5 * UP, 1.5 * DOWN,
+                         stroke_color=self.COLOR_INDICATOR)  # INDICATORCOLOR
+        mass = Square(color=GRAY,
+                      sheen_factor=0.7,
+                      stroke_color=GREEN_E,
+                      stroke_width=20)  # MASSCOLOR
         wall = Rectangle(height=3,
                          width=1,
                          fill_color=DARKER_GRAY,
                          fill_opacity=1,
                          stroke_opacity=0.5,
                          stroke_color=DARK_GRAY,
-                         sheen_factor=0.1, )
+                         sheen_factor=0.3, )
         spring = DashedLine(positive_space_ratio=0.7,
                             dash_length=0.1,
-                            stroke_color=BLUE)
+                            stroke_color=TEAL_E)  # SPRINGCOLOR
         damper = DashedLine(positive_space_ratio=0.7,
                             dash_length=0.1,
-                            stroke_color=RED)
-        labels = {'mass': TexMobject('\\text{Mass}\\,(', f'm={self.MCK[0]}', ')'),
-                  'damper': TexMobject('\\text{Dapmer}\\,(', f'c={self.MCK[1]}', ')'),
-                  'spring': TexMobject('\\text{Spring}\\,(', f'k={self.MCK[2]}', ')'),
-                  'wall': TexMobject('\\text{Wall}'),
+                            stroke_color=YELLOW_E)  # DAMPERCOLOR
+        labels = {'mass': TexMobject('\\text{M}', '\\text{ass} \\, (', f'm={self.MCK[0]}', ')'),
+                  'damper': TexMobject('\\text{D}', '\\text{apmer}\\,(', f'c={self.MCK[1]}', ')'),
+                  'spring': TexMobject('\\text{S}', '\\text{pring}\\,(', f'k={self.MCK[2]}', ')'),
+                  # 'wall': TexMobject('\\text{Wall}'),
                   'zero': TexMobject('x=0')}
-        title = TextMobject('Mass-Damper-Spring System')
+        title = TextMobject('Mass', '-', 'Damper', '-', 'Spring', ' System',
+                            color=WHITE,
+                            sheen_factor=0.5,
+                            height=0.9)
 
-        vector_velocity = Arrow(stroke_color=GREEN)
-        vector_acceleration = Arrow(stroke_color=YELLOW)
+        vector_velocity = Arrow(stroke_color=BLUE_E)  # VCOLOR
+        vector_acceleration = Arrow(stroke_color=RED_E)  # ACOLOR
 
         # some constants and groups
         obj_group = VGroup(indicator, mass, wall, spring, damper, vector_velocity, vector_acceleration)
@@ -388,23 +401,36 @@ class MCK_Simulation_v2(Scene):
         wall.move_to(np.array([-5, 0, 0]) + obj_position)
         indicator.move_to(obj_position)
 
-        vector_velocity.move_to(obj_position+0.5*UP)
+        vector_velocity.move_to(obj_position + 0.5 * UP)
         vector_velocity.scale(0.5)
-        vector_acceleration.move_to(obj_position+0.5*DOWN)
+        vector_acceleration.move_to(obj_position + 0.5 * DOWN)
         vector_acceleration.scale(0.5)
 
-        title.to_edge(UP)
-        labels['zero'].next_to(indicator, UP)
-        labels['wall'].move_to(wall.get_center())
-        labels['wall'].scale(0.7)
+        labels['zero'].next_to(indicator, UP, buff=SMALL_BUFF)
+        labels['zero'].scale(0.9)
+        # labels['wall'].move_to(wall.get_center())
+        # labels['wall'].scale(0.7)
         labels['mass'].to_edge(RIGHT)
-        labels['mass'].scale(0.7)
+        labels['mass'].scale(0.8)
         labels['spring'].move_to(np.array([-3, +0.75, 0]) + obj_position)
         labels['spring'].scale(0.7)
         labels['damper'].move_to(np.array([-3, -0.75, 0]) + obj_position)
         labels['damper'].scale(0.7)
 
+        # set colors
+        title[0].set_color(self.COLOR_MASS)
+        title[2].set_color(self.COLOR_DAMPER)
+        title[4].set_color(self.COLOR_SPRING)
+        labels['zero'].set_color(self.COLOR_INDICATOR)  # INDICATORCOLOR
+        labels['mass'][0].set_color(self.COLOR_MASS)
+        labels['mass'][2].set_color(self.COLOR_MASS)  # MASSCOLOR
+        labels['spring'][0].set_color(self.COLOR_SPRING)
+        labels['spring'][2].set_color(self.COLOR_SPRING)  # SPRINGCOLOR
+        labels['damper'][0].set_color(self.COLOR_DAMPER)  # DAMPERCOLOR
+        labels['damper'][2].set_color(self.COLOR_DAMPER)
 
+        spring.put_start_and_end_on(wall.get_right() + line_gap, mass.get_left() + line_gap)
+        damper.put_start_and_end_on(wall.get_right() - line_gap, mass.get_left() - line_gap)
 
         # update things
         def frame_idx():
@@ -412,7 +438,6 @@ class MCK_Simulation_v2(Scene):
             while 1:
                 yield i
                 i += 1
-
         idx = frame_idx()
 
         def get_point_from_value(value):
@@ -432,17 +457,47 @@ class MCK_Simulation_v2(Scene):
             s.put_start_and_end_on(w.get_right() + line_gap, m.get_left() + line_gap)
             d.put_start_and_end_on(w.get_right() - line_gap, m.get_left() - line_gap)
 
-            vv.put_start_and_end_on(x_point+obj_position+line_gap, x_point+v_point+obj_position+line_gap)
-            va.put_start_and_end_on(x_point+obj_position-line_gap, x_point+a_point+obj_position-line_gap)
+            vv.put_start_and_end_on(x_point + obj_position + line_gap, x_point + v_point + obj_position + line_gap)
+            va.put_start_and_end_on(x_point + obj_position - line_gap, x_point + a_point + obj_position - line_gap)
 
+
+        # upcomming objects
+        self.play(Write(title))
+        self.play(title.to_edge, dict(edge=UP, buff=MED_SMALL_BUFF,),
+                  title.set_height, 0.4)
+        self.play(Write(axes))
+        self.play(DrawBorderThenFill(obj_group))
+        # magic starts
+        self.play(mass.shift, get_point_from_value(mck_system.get_x(0)),
+                  vector_velocity.put_start_and_end_on, *(get_point_from_value(mck_system.get_x(0)) + obj_position + line_gap,
+                                                          get_point_from_value(mck_system.get_x(0) + mck_system.get_xdot(0)) + obj_position + line_gap),
+                  vector_acceleration.put_start_and_end_on, *(get_point_from_value(mck_system.get_x(0)) + obj_position - line_gap,
+                                                          get_point_from_value(mck_system.get_x(0) + mck_system.get_xddot(0)) + obj_position - line_gap),
+                  spring.put_start_and_end_on, *(wall.get_right() + line_gap,
+                                                 get_point_from_value(mck_system.get_x(0)) + obj_position + line_gap),
+                  damper.put_start_and_end_on, *(wall.get_right() - line_gap,
+                                                 get_point_from_value(mck_system.get_x(0)) + obj_position - line_gap), )
+
+        # some captions
+        caption_arrow = Arrow(labels['mass'].get_edge_center(DOWN), mass.get_edge_center(UP),buff=SMALL_BUFF ,
+                              stroke_color=self.COLOR_MASS)
+        caption_vv = TextMobject('Velocity Vector', color=BLUE_C, height=0.3)
+        # caption_vv.scale(0.6)
+        caption_vv.next_to(vector_velocity, DOWN, buff=SMALL_BUFF)
+        caption_va = TextMobject('Acceleration Vector', color=RED_C, height=0.3)
+        # caption_va.scale(0.6)
+        caption_va.next_to(vector_acceleration, DOWN, buff=SMALL_BUFF)
+        captions = (caption_arrow, caption_vv, caption_va)
+
+        self.play(*[ShowCreation(_) for _ in labels.values()],
+                  *[ShowCreation(_) for _ in captions], run_time=2)
+        self.wait(2)
+        self.play(*[FadeOut(_) for _ in labels.values()],
+                  *[FadeOut(_) for _ in captions])
         obj_group.add_updater(update_mass)
-
-        self.add(title)
-        self.add(obj_group)
-        [self.add(_) for _ in labels.values()]
         # [self.bring_to_front(_) for _ in labels.values()]
         self.add(axes, graph_x, graph_xdot, graph_xddot)
-        self.wait(self.PLAY_TIME)
+        self.wait(self.PLAY_TIME*0.95)
 
 
 def turn_value_to_vector(value):

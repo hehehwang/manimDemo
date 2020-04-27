@@ -2,7 +2,7 @@ manim color code
 =
 #### from manimlib/constants.py
 
-- ![#000000](https://placehold.it/1/000000/000000/000000?text=+) `BLACK`
+- ![#000000](https://placehold.it/15/000000/000000/000000?text=+) `BLACK`
 - ![#C7E9F1](https://placehold.it/15/C7E9F1/C7E9F1/000000?text=+) `BLUE_A`
 - ![#9CDCEB](https://placehold.it/15/9CDCEB/9CDCEB/000000?text=+) `BLUE_B`
 - ![#58C4DD](https://placehold.it/15/58C4DD/58C4DD/000000?text=+) `BLUE_C`
