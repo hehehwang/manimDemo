@@ -285,12 +285,12 @@ class XVsTAxes(Axes):
 class MCK_Simulation_v2(Scene):
     CONFIG = {
         # data
-        "MCK": [10, 2, 10],
+        "MCK": [10, 4, 10],
         "INIT": [5, 0],
         "DELTA_T": 0.0001,
         "DATA_RAW": [],  # for cpu saving
         # animation
-        "REST_POS_OFFSET": 0.15,
+        "REST_POS_OFFSET": 0.05,
         "PLAY_SPEED": 4,
         "PLAY_TIME": 0,
         # regulation
@@ -375,16 +375,24 @@ class MCK_Simulation_v2(Scene):
                   'zero': TexMobject('x=0')}
         title = TextMobject('Mass-Damper-Spring System')
 
-        obj_group = VGroup(indicator, mass, wall, spring, damper)
+        vector_velocity = Arrow(stroke_color=GREEN)
+        vector_acceleration = Arrow(stroke_color=YELLOW)
 
+        # some constants and groups
+        obj_group = VGroup(indicator, mass, wall, spring, damper, vector_velocity, vector_acceleration)
         obj_position = np.array([0, -2, 0])
         line_gap = np.array([0, 0.5, 0])
 
-        # set default position
+        # set initial position
+        mass.move_to(obj_position)
         wall.move_to(np.array([-5, 0, 0]) + obj_position)
         indicator.move_to(obj_position)
 
-        # set first position
+        vector_velocity.move_to(obj_position+0.5*UP)
+        vector_velocity.scale(0.5)
+        vector_acceleration.move_to(obj_position+0.5*DOWN)
+        vector_acceleration.scale(0.5)
+
         title.to_edge(UP)
         labels['zero'].next_to(indicator, UP)
         labels['wall'].move_to(wall.get_center())
@@ -396,6 +404,8 @@ class MCK_Simulation_v2(Scene):
         labels['damper'].move_to(np.array([-3, -0.75, 0]) + obj_position)
         labels['damper'].scale(0.7)
 
+
+
         # update things
         def frame_idx():
             i = 0
@@ -405,18 +415,25 @@ class MCK_Simulation_v2(Scene):
 
         idx = frame_idx()
 
-        def update_mass(obj, dt):
-            ind, m, w, s, d = obj
-            # indicator, mass, wall, spring, damper, labels
-            dt_mult = dt * self.PLAY_SPEED
+        def get_point_from_value(value):
+            return np.array([value, 0, 0])
 
-            x = mck_system.get_x(dt_mult * next(idx)) / 1.5
-            move_point = np.array([x, 0, 0])
-            m.move_to(move_point + obj_position)
+        def update_mass(obj, dt):
+            ind, m, w, s, d, vv, va = obj
+            # indicator, mass, wall, spring, damper, labels, vector_velocity, vector_acceleration
+            dt_mult = dt * self.PLAY_SPEED
+            time_now = dt_mult * next(idx)
+
+            x, v, a = mck_system.get_datum(time_now)
+            x_point, v_point, a_point = [get_point_from_value(_) for _ in [x, v, a]]
+            m.move_to(x_point + obj_position)
             # labels['mass'].move_to(move_point + obj_position)
 
             s.put_start_and_end_on(w.get_right() + line_gap, m.get_left() + line_gap)
             d.put_start_and_end_on(w.get_right() - line_gap, m.get_left() - line_gap)
+
+            vv.put_start_and_end_on(x_point+obj_position+line_gap, x_point+v_point+obj_position+line_gap)
+            va.put_start_and_end_on(x_point+obj_position-line_gap, x_point+a_point+obj_position-line_gap)
 
         obj_group.add_updater(update_mass)
 
