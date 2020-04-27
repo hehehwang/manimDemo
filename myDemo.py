@@ -110,7 +110,7 @@ class XVsTAxes(Axes):
         t_label.next_to(x_axis.get_right(), UP, MED_SMALL_BUFF)
         x_axis.label = t_label
         x_axis.add(t_label)
-        y_label = self.y_label = TexMobject("x(t)").scale(0.8)
+        y_label = self.y_label = TexMobject("x,\\, \\dot{x},\\, \\ddot{x}").scale(0.8)
         y_label.next_to(y_axis.get_top(), UP, SMALL_BUFF)
         y_axis.label = y_label
         y_axis.add(y_label)
@@ -118,9 +118,37 @@ class XVsTAxes(Axes):
         self.y_axis_label = y_label
         self.x_axis_label = t_label
 
-        x_axis.add_numbers()
-        y_axis.add_numbers()
-        # y_axis.add(self.get_y_axis_coordinates(y_axis))
+        # x_axis.add_numbers()
+        x_axis.add(self.get_x_axis_coordinates(x_axis))
+        # y_axis.add_numbers()
+        y_axis.add(self.get_y_axis_coordinates(y_axis))
+
+    def get_x_axis_coordinates(self, x_axis):
+        xmax, xmin = round(self.x_max)+1, 0
+        texs = [str(_) for _ in range(xmin, xmax, self.x_label_frequency)]
+        values = np.arange(xmin, xmax, self.x_label_frequency)
+        labels = VGroup()
+        for tex, value in zip(texs, values):
+            symbol = TexMobject(tex)
+            symbol.scale(0.5)
+            point = x_axis.number_to_point(value)
+            symbol.next_to(point, DOWN, MED_SMALL_BUFF)
+            labels.add(symbol)
+        return labels
+
+    def get_y_axis_coordinates(self, y_axis):
+        ymax, ymin = round(self.y_max+0.9), round(self.y_min-0.9)
+        texs = [str(_) for _ in range(ymin, ymax, self.y_label_frequency)]
+        values = np.arange(ymin, ymax, self.y_label_frequency)
+        labels = VGroup()
+        for tex, value in zip(texs, values):
+            symbol = TexMobject(tex)
+            symbol.scale(0.5)
+            point = y_axis.number_to_point(value)
+            symbol.next_to(point, LEFT, MED_SMALL_BUFF)
+            labels.add(symbol)
+        return labels
+
 
     # def get_y_axis_coordinates(self, y_axis):
     #     # texs = [
@@ -257,13 +285,13 @@ class XVsTAxes(Axes):
 class MCK_Simulation_v2(Scene):
     CONFIG = {
         # data
-        "MCK": [10, 4, 10],
+        "MCK": [10, 2, 10],
         "INIT": [5, 0],
         "DELTA_T": 0.0001,
         "DATA_RAW": [],  # for cpu saving
         # animation
-        "REST_POS_OFFSET": 0.1,
-        "PLAY_SPEED": 2,
+        "REST_POS_OFFSET": 0.15,
+        "PLAY_SPEED": 4,
         "PLAY_TIME": 0,
         # regulation
         "X_REG_SCALE": 4,
@@ -276,13 +304,13 @@ class MCK_Simulation_v2(Scene):
             "x_max": 10,
             "x_axis_config": {
                 "tick_frequency": 1,
-                "unit_size": 0.5,
+                "unit_size": 0.2,
             },
             "y_min": -5,
             "y_max": 5,
             "y_axis_config": {
                 "tick_frequency": 1,
-                "unit_size": 0.25,
+                "unit_size": 0.15,
             },
             "axis_config": {
                 "color": "#EEEEEE",
@@ -294,6 +322,8 @@ class MCK_Simulation_v2(Scene):
                 "stroke_width": 3,
                 "fill_opacity": 0,
             },
+            "x_label_frequency": 2,
+            "y_label_frequency": 2,
         },
         "axes_corner": UL,
         "axes_edge": UP,
@@ -304,7 +334,7 @@ class MCK_Simulation_v2(Scene):
         mck_system = MCKsystem_n(self.DELTA_T, self.MCK, self.INIT, self.REST_POS_OFFSET)
 
         # initiate config value
-        self.PLAY_TIME = round(len(mck_system.get_data_by_offset()) * self.DELTA_T / self.PLAY_SPEED)
+        self.PLAY_TIME = int(len(mck_system.get_data_by_offset()) * self.DELTA_T / self.PLAY_SPEED)
         self.axes_config['x_max'] = self.PLAY_TIME * self.PLAY_SPEED + LARGE_BUFF
         self.axes_config['y_max'] = max(mck_system.get_x_data() +
                                         mck_system.get_xdot_data() +
@@ -316,7 +346,7 @@ class MCK_Simulation_v2(Scene):
         # graph
         axes = XVsTAxes(self.PLAY_SPEED, **self.axes_config)
         axes.center()
-        axes.to_edge(self.axes_edge, buff=MED_LARGE_BUFF)
+        axes.to_edge(self.axes_edge, buff=1.5)
         graph_x = axes.get_live_drawn_graph_x(mck_system)
         graph_xdot = axes.get_live_drawn_graph_xdot(mck_system)
         graph_xddot = axes.get_live_drawn_graph_xddot(mck_system)
@@ -343,6 +373,7 @@ class MCK_Simulation_v2(Scene):
                   'spring': TexMobject('\\text{Spring}\\,(', f'k={self.MCK[2]}', ')'),
                   'wall': TexMobject('\\text{Wall}'),
                   'zero': TexMobject('x=0')}
+        title = TextMobject('Mass-Damper-Spring System')
 
         obj_group = VGroup(indicator, mass, wall, spring, damper)
 
@@ -354,6 +385,7 @@ class MCK_Simulation_v2(Scene):
         indicator.move_to(obj_position)
 
         # set first position
+        title.to_edge(UP)
         labels['zero'].next_to(indicator, UP)
         labels['wall'].move_to(wall.get_center())
         labels['wall'].scale(0.7)
@@ -388,6 +420,7 @@ class MCK_Simulation_v2(Scene):
 
         obj_group.add_updater(update_mass)
 
+        self.add(title)
         self.add(obj_group)
         [self.add(_) for _ in labels.values()]
         # [self.bring_to_front(_) for _ in labels.values()]
