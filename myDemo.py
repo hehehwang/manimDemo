@@ -14,6 +14,9 @@ class MCKsystem_n:
         self.offset = offset
         self.data = self.initiate_data_by_offset()
 
+    def get_zeta(self):
+        return self.C/(2*np.sqrt(self.M*self.K))
+
     def get_x_ddot(self, x, x_dot):
         return -self.K / self.M * x - self.C / self.M * x_dot
 
@@ -151,33 +154,6 @@ class XVsTAxes(Axes):
             labels.add(symbol)
         return labels
 
-    # def get_y_axis_coordinates(self, y_axis):
-    #     # texs = [
-    #     #     # "\\pi \\over 4",
-    #     #     # "\\pi \\over 2",
-    #     #     # "3 \\pi \\over 4",
-    #     #     # "\\pi",
-    #     #     "\\pi / 4",
-    #     #     "\\pi / 2",
-    #     #     "3 \\pi / 4",
-    #     #     "\\pi",
-    #     # ]
-    #     texs = [str(_) for _ in range(0, 10, 1)]
-    #     values = np.arange(0, 10, 1)
-    #     labels = VGroup()
-    #     for pos_tex, pos_value in zip(texs, values):
-    #         neg_tex = "-" + pos_tex
-    #         neg_value = -1 * pos_value
-    #         for tex, value in (pos_tex, pos_value), (neg_tex, neg_value):
-    #             if value > self.y_max or value < self.y_min:
-    #                 continue
-    #             symbol = TexMobject(tex)
-    #             symbol.scale(0.5)
-    #             point = y_axis.number_to_point(value)
-    #             symbol.next_to(point, LEFT, MED_SMALL_BUFF)
-    #             labels.add(symbol)
-    #     return labels
-
     def get_live_drawn_graph_x(self, system,
                                t_max=None,
                                t_step=1.0 / 60,
@@ -208,7 +184,8 @@ class XVsTAxes(Axes):
                 self.coords_to_point(*coords)
                 for coords in [*graph.all_coords, new_coords]
             ]
-            graph.set_points_smoothly(points)
+            if graph.time > 0.05:
+                graph.set_points_smoothly(points)
 
         graph.add_updater(update_graph)
         return graph
@@ -243,7 +220,8 @@ class XVsTAxes(Axes):
                 self.coords_to_point(*coords)
                 for coords in [*graph.all_coords, new_coords]
             ]
-            graph.set_points_smoothly(points)
+            if graph.time > 0.05:
+                graph.set_points_smoothly(points)
 
         graph.add_updater(update_graph)
         return graph
@@ -278,7 +256,8 @@ class XVsTAxes(Axes):
                 self.coords_to_point(*coords)
                 for coords in [*graph.all_coords, new_coords]
             ]
-            graph.set_points_smoothly(points)
+            if graph.time > 0.05:
+                graph.set_points_smoothly(points)
 
         graph.add_updater(update_graph)
         return graph
@@ -287,12 +266,12 @@ class XVsTAxes(Axes):
 class MCK_Simulation_v2(Scene):
     CONFIG = {
         # data
-        "MCK": [10, 6, 10],
+        "MCK": [10, 10, 10],
         "INIT": [5, -1],
         "DELTA_T": 0.0001,
-        "DATA_RAW": [],  # for cpu saving
+        "DATA_RAW": [],  # for computation resource saving
         # animation
-        "REST_POS_OFFSET": 0.1,
+        "REST_POS_OFFSET": 0.05,
         "PLAY_SPEED": 2,
         "PLAY_TIME": 0,
         # regulation
@@ -302,7 +281,7 @@ class MCK_Simulation_v2(Scene):
         "VA_REG_OFFSET": 0,
         # colors
         "COLOR_INDICATOR": LIGHT_GRAY,
-        "COLOR_MASS": GREEN_E,
+        "COLOR_MASS": MAROON_E,
         "COLOR_SPRING": TEAL_E,
         "COLOR_DAMPER": YELLOW_E,
         # graph
@@ -349,6 +328,7 @@ class MCK_Simulation_v2(Scene):
         self.axes_config['y_min'] = min(mck_system.get_x_data() +
                                         mck_system.get_xdot_data() +
                                         mck_system.get_xddot_data()) - LARGE_BUFF
+        self.axes_config["x_axis_config"]["unit_size"] = 9.6/(self.PLAY_TIME*self.PLAY_SPEED)
 
         # graph
         axes = XVsTAxes(self.PLAY_SPEED, **self.axes_config)
@@ -363,8 +343,8 @@ class MCK_Simulation_v2(Scene):
                          stroke_color=self.COLOR_INDICATOR)  # INDICATORCOLOR
         mass = Square(color=GRAY,
                       sheen_factor=0.7,
-                      stroke_color=GREEN_E,
-                      stroke_width=20)  # MASSCOLOR
+                      stroke_color=self.COLOR_MASS,
+                      stroke_width=10)  # MASSCOLOR
         wall = Rectangle(height=3,
                          width=1,
                          fill_color=DARKER_GRAY,
@@ -381,12 +361,19 @@ class MCK_Simulation_v2(Scene):
         labels = {'mass': TexMobject('\\text{M}', '\\text{ass} \\, (', f'm={self.MCK[0]}', ')'),
                   'damper': TexMobject('\\text{D}', '\\text{apmer}\\,(', f'c={self.MCK[1]}', ')'),
                   'spring': TexMobject('\\text{S}', '\\text{pring}\\,(', f'k={self.MCK[2]}', ')'),
-                  # 'wall': TexMobject('\\text{Wall}'),
                   'zero': TexMobject('x=0')}
-        title = TextMobject('Mass', '-', 'Damper', '-', 'Spring', ' System',
-                            color=WHITE,
-                            sheen_factor=0.5,
-                            height=0.9)
+        # title = TextMobject('Mass', '-', 'Damper', '-', 'Spring', ' System',
+        #                     color=WHITE,
+        #                     sheen_factor=0.5,
+        #                     height=0.9)
+        title0 = TextMobject('Mass', '-', 'Damper', '-', 'Spring', ' System',
+                             color=WHITE,
+                             sheen_factor=0.5,
+                             height=0.9)
+        title1 = TexMobject('\\text{Mass', '-', 'Damper', '-', 'Spring', ' System}',
+                             color=WHITE,
+                             sheen_factor=0.5,
+                             height=0.4)
 
         vector_velocity = Arrow(stroke_color=BLUE_E)  # VCOLOR
         vector_acceleration = Arrow(stroke_color=RED_E)  # ACOLOR
@@ -397,6 +384,8 @@ class MCK_Simulation_v2(Scene):
         line_gap = np.array([0, 0.5, 0])
 
         # set initial position
+        title1.to_edge(UP, buff=MED_SMALL_BUFF)
+        title2.to_edge(UP, buff=MED_SMALL_BUFF)
         mass.move_to(obj_position)
         wall.move_to(np.array([-5, 0, 0]) + obj_position)
         indicator.move_to(obj_position)
@@ -408,8 +397,6 @@ class MCK_Simulation_v2(Scene):
 
         labels['zero'].next_to(indicator, UP, buff=SMALL_BUFF)
         labels['zero'].scale(0.9)
-        # labels['wall'].move_to(wall.get_center())
-        # labels['wall'].scale(0.7)
         labels['mass'].to_edge(RIGHT)
         labels['mass'].scale(0.8)
         labels['spring'].move_to(np.array([-3, +0.75, 0]) + obj_position)
@@ -418,9 +405,10 @@ class MCK_Simulation_v2(Scene):
         labels['damper'].scale(0.7)
 
         # set colors
-        title[0].set_color(self.COLOR_MASS)
-        title[2].set_color(self.COLOR_DAMPER)
-        title[4].set_color(self.COLOR_SPRING)
+        for idx, color in zip((0, 2, 4), (self.COLOR_MASS, self.COLOR_DAMPER, self.COLOR_SPRING)):
+            title0[idx].set_color(color)
+            title1[idx].set_color(color)
+            title2[idx].set_color(color)
         labels['zero'].set_color(self.COLOR_INDICATOR)  # INDICATORCOLOR
         labels['mass'][0].set_color(self.COLOR_MASS)
         labels['mass'][2].set_color(self.COLOR_MASS)  # MASSCOLOR
@@ -449,10 +437,11 @@ class MCK_Simulation_v2(Scene):
             dt_mult = dt * self.PLAY_SPEED
             time_now = dt_mult * next(idx)
 
-            x, v, a = mck_system.get_datum(time_now)
+            try: x, v, a = mck_system.get_datum(time_now)
+            except: obj.remove_updater(update_mass)
+
             x_point, v_point, a_point = [get_point_from_value(_) for _ in [x, v, a]]
             m.move_to(x_point + obj_position)
-            # labels['mass'].move_to(move_point + obj_position)
 
             s.put_start_and_end_on(w.get_right() + line_gap, m.get_left() + line_gap)
             d.put_start_and_end_on(w.get_right() - line_gap, m.get_left() - line_gap)
@@ -460,11 +449,12 @@ class MCK_Simulation_v2(Scene):
             vv.put_start_and_end_on(x_point + obj_position + line_gap, x_point + v_point + obj_position + line_gap)
             va.put_start_and_end_on(x_point + obj_position - line_gap, x_point + a_point + obj_position - line_gap)
 
-
-        # upcomming objects
-        self.play(Write(title))
-        self.play(title.to_edge, dict(edge=UP, buff=MED_SMALL_BUFF,),
-                  title.set_height, 0.4)
+        # and show begins
+        self.play(Write(title0))
+        self.play(Transform(title0, title1))
+        # introducing zeta
+        m, c, k = self.MCK
+        
         self.play(Write(axes))
         self.play(DrawBorderThenFill(obj_group))
         # magic starts
@@ -481,11 +471,11 @@ class MCK_Simulation_v2(Scene):
         # some captions
         caption_arrow = Arrow(labels['mass'].get_edge_center(DOWN), mass.get_edge_center(UP),buff=SMALL_BUFF ,
                               stroke_color=self.COLOR_MASS)
-        caption_vv = TextMobject('Velocity Vector', color=BLUE_C, height=0.3)
-        # caption_vv.scale(0.6)
+        caption_vv = TextMobject('Velocity',' Vector', color=BLUE_C, height=0.3)
+        caption_vv[1].set_color(WHITE)
         caption_vv.next_to(vector_velocity, DOWN, buff=SMALL_BUFF)
-        caption_va = TextMobject('Acceleration Vector', color=RED_C, height=0.3)
-        # caption_va.scale(0.6)
+        caption_va = TextMobject('Acceleration',' Vector', color=RED_C, height=0.3)
+        caption_va[1].set_color(WHITE)
         caption_va.next_to(vector_acceleration, DOWN, buff=SMALL_BUFF)
         captions = (caption_arrow, caption_vv, caption_va)
 
@@ -495,135 +485,5 @@ class MCK_Simulation_v2(Scene):
         self.play(*[FadeOut(_) for _ in labels.values()],
                   *[FadeOut(_) for _ in captions])
         obj_group.add_updater(update_mass)
-        # [self.bring_to_front(_) for _ in labels.values()]
         self.add(axes, graph_x, graph_xdot, graph_xddot)
-        self.wait(self.PLAY_TIME*0.95)
-
-
-def turn_value_to_vector(value):
-    return np.array([value, 0, 0])
-
-
-def get_vector_from_value(value):
-    return np.array([value, 0, 0])
-
-
-class MCK_Simulation(Scene):
-    CONFIG = {
-        "n_steps_per_frame": 100,
-        # mck, init, tt, deltt = [10, 10, 6], [5, 0], 12, 0.0001
-        "MCK": [10, 2, 10],
-        "INIT": [10, 10],
-        "TIME": 12,
-        "DELTA_T": 0.0001,
-        "PLAY_SPEED": 2,
-        # regulation
-        "X_REG_SCALE": 4,
-        "X_REG_OFFSET": 0,
-        "VA_REG_SCALE": 3,
-        "VA_REG_OFFSET": 0,
-    }
-
-    def _regulate_x_by_scale(self, x_list):
-        x_max, x_min = max(x_list), min(x_list)
-        return [x * self.X_REG_SCALE / (x_max - x_min) + self.X_REG_OFFSET for x in x_list]
-
-    def _regulate_va_by_scale(self, va_list):
-        va_max, va_min = max(va_list), min(va_list)
-        return [va * self.VA_REG_SCALE / (va_max - va_min) + self.VA_REG_OFFSET for va in va_list]
-
-    def regulate_data_by_scale(self, data):
-        data = list(zip(*data))
-        data_return = [self._regulate_x_by_scale(data[0]),
-                       self._regulate_va_by_scale(data[1]),
-                       self._regulate_va_by_scale(data[2])]
-        data_return = list(zip(*data_return))
-        return data_return
-
-    def get_values(self):
-        system = MCKsystem_n(self.DELTA_T, self.MCK, self.INIT)
-        return system.get_data_by_offset(0.1)
-
-    def skip_data_by_frame(self, data):
-        framerate = self.camera.frame_rate
-        data_raw = data
-        frame_ratio = int((1 / self.DELTA_T) / framerate * self.PLAY_SPEED)
-        data_return = []
-        i = 0
-        while 1:
-            try:
-                data_return.append(data_raw[i * frame_ratio])
-                i += 1
-            except:
-                break
-        return data_return
-
-    def process_data(self):
-        data_rare = self.get_values()
-        data_medium = self.skip_data_by_frame(data_rare)
-        data_medium_welldone = self.regulate_data_by_scale(data_medium)
-        data_welldone = [[get_vector_from_value(v) for v in datum] for datum in data_medium_welldone]
-        return data_welldone
-
-    def setup(self):
-        indicator = Line(2 * UP, 2 * DOWN)
-        indicator.move_to(np.array([self.X_REG_OFFSET, 0, 0]))
-        indicator.set_stroke(color=GRAY)
-        label0 = TexMobject('x=0')
-        label0.move_to(indicator.get_edge_center(UP) + 0.5 * UP)
-        self.add(indicator)
-        self.play(Write(label0))
-
-    def construct(self):
-        data = self.process_data()
-        data_iter = iter(data)
-        play_duration = len(data) // self.camera.frame_rate
-
-        # mobs
-        mass = Rectangle(height=2, width=2, color=GRAY, fill_opacity=1)
-
-        wall = Rectangle(height=4,
-                         width=1,
-                         fill_color=GRAY,
-                         fill_opacity=1,
-                         stroke_opacity=1,
-                         stroke_color=DARK_GRAY,
-                         background_stroke_opacity=0.5,
-                         sheen_factor=0.5, )
-        wall.to_edge(LEFT, buff=2)
-
-        spring = Line(wall.get_right() + 0.5 * UP, mass.get_left() + 0.5 * UP)
-        damper = DashedLine(wall.get_right() + 0.5 * DOWN, mass.get_left() + 0.5 * DOWN)
-
-        arrow_velocity = Arrow().shift(0.5 * UP)
-        arrow_acceleration = Arrow().shift(0.5 * DOWN)
-        arrow_group = VGroup(arrow_velocity, arrow_acceleration)
-
-        def get_values():
-            return next(data_iter)
-
-        def update_mass(mob, dt):
-            datum = get_values()
-            displacement, velocity, acceleration = datum
-            mass.move_to(displacement)
-            spring.put_start_and_end_on(wall.get_right() + 0.5 * UP, mass.get_left() + 0.5 * UP)
-            damper.put_start_and_end_on(wall.get_right() + 0.5 * DOWN, mass.get_left() + 0.5 * DOWN)
-
-            point_vel_origin = displacement + 0.5 * UP
-            arrow_velocity.put_start_and_end_on(point_vel_origin, point_vel_origin + velocity)
-            point_acc_origin = displacement + 0.5 * DOWN
-            arrow_acceleration.put_start_and_end_on(point_acc_origin, point_acc_origin + acceleration)
-
-        def update_initiate_position(mob, dt):
-            datum = data[0]
-            x, xdot, xddot = datum
-            mass.move_to(x)
-            arrow_velocity.put_start_and_end_on(x + 0.5 * UP, x + 0.5 * UP + xdot)
-            arrow_acceleration.put_start_and_end_on(x + 0.5 * DOWN, x + 0.5 * DOWN + xddot)
-
-        self.play(DrawBorderThenFill(wall),
-                  DrawBorderThenFill(mass))
-        self.play(*map(Write, [spring, damper, arrow_group]))
-        self.wait()
-        mass.add_updater(update_mass)
-        self.wait(play_duration)
+        self.wait(self.PLAY_TIME)
