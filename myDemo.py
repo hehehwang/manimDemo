@@ -266,7 +266,7 @@ class XVsTAxes(Axes):
 class MCK_Simulation_v2(Scene):
     CONFIG = {
         # data
-        "MCK": [10, 10, 10],
+        "MCK": [10, 4, 10],
         "INIT": [5, -1],
         "DELTA_T": 0.0001,
         "DATA_RAW": [],  # for computation resource saving
@@ -341,10 +341,13 @@ class MCK_Simulation_v2(Scene):
         # Generate Objects
         indicator = Line(1.5 * UP, 1.5 * DOWN,
                          stroke_color=self.COLOR_INDICATOR)  # INDICATORCOLOR
-        mass = Square(color=GRAY,
-                      sheen_factor=0.7,
-                      stroke_color=self.COLOR_MASS,
-                      stroke_width=10)  # MASSCOLOR
+        mass = Square(fill_color=self.COLOR_MASS,
+                      fill_opacity=1,
+                      sheen_factor=0.9,
+                      stroke_width=0,
+                      # stroke_color=self.COLOR_MASS,
+                      # stroke_width=10,
+                      )
         wall = Rectangle(height=3,
                          width=1,
                          fill_color=DARKER_GRAY,
@@ -385,7 +388,6 @@ class MCK_Simulation_v2(Scene):
 
         # set initial position
         title1.to_edge(UP, buff=MED_SMALL_BUFF)
-        title2.to_edge(UP, buff=MED_SMALL_BUFF)
         mass.move_to(obj_position)
         wall.move_to(np.array([-5, 0, 0]) + obj_position)
         indicator.move_to(obj_position)
@@ -408,7 +410,6 @@ class MCK_Simulation_v2(Scene):
         for idx, color in zip((0, 2, 4), (self.COLOR_MASS, self.COLOR_DAMPER, self.COLOR_SPRING)):
             title0[idx].set_color(color)
             title1[idx].set_color(color)
-            title2[idx].set_color(color)
         labels['zero'].set_color(self.COLOR_INDICATOR)  # INDICATORCOLOR
         labels['mass'][0].set_color(self.COLOR_MASS)
         labels['mass'][2].set_color(self.COLOR_MASS)  # MASSCOLOR
@@ -449,25 +450,87 @@ class MCK_Simulation_v2(Scene):
             vv.put_start_and_end_on(x_point + obj_position + line_gap, x_point + v_point + obj_position + line_gap)
             va.put_start_and_end_on(x_point + obj_position - line_gap, x_point + a_point + obj_position - line_gap)
 
+        def play_labels():
+            self.play(mass.shift, get_point_from_value(mck_system.get_x(0)),
+                      vector_velocity.put_start_and_end_on,
+                      *(get_point_from_value(mck_system.get_x(0)) + obj_position + line_gap,
+                        get_point_from_value(mck_system.get_x(0) + mck_system.get_xdot(0)) + obj_position + line_gap),
+                      vector_acceleration.put_start_and_end_on,
+                      *(get_point_from_value(mck_system.get_x(0)) + obj_position - line_gap,
+                        get_point_from_value(mck_system.get_x(0) + mck_system.get_xddot(0)) + obj_position - line_gap),
+                      spring.put_start_and_end_on, *(wall.get_right() + line_gap,
+                                                     get_point_from_value(
+                                                         mck_system.get_x(0)) + obj_position + line_gap),
+                      damper.put_start_and_end_on, *(wall.get_right() - line_gap,
+                                                     get_point_from_value(
+                                                         mck_system.get_x(0)) + obj_position - line_gap), )
+
+        def play_introduce_zeta():
+            m, c, k = self.MCK
+            color_mck = [self.COLOR_MASS, self.COLOR_DAMPER, self.COLOR_SPRING]
+            matrix_mck = [Matrix([[r'\text{Mass}'], [r'\text{Damper coefficient}'], [r'\text{String coefficient}']]),
+                          Matrix([['m'], ['c'], ['k']]),
+                          Matrix([[m], [c], [k]])]
+            equalsign = TexMobject('=')
+
+            def color_row(mat):
+                entry = mat.get_mob_matrix()
+                for mm, cc in zip(entry, color_mck):
+                    mm[0].set_color(cc)
+
+            [color_row(_) for _ in matrix_mck]
+
+            eqn1 = VGroup(matrix_mck[1], equalsign, matrix_mck[2])
+            eqn1.arrange()
+            self.play(Write(matrix_mck[0]))
+            self.wait()
+            self.play(ReplacementTransform(matrix_mck[0], eqn1[0]))
+            self.play(Write(eqn1[1]))
+            self.play(ReplacementTransform(eqn1[0].copy(), eqn1[2]))
+            self.wait()
+            self.play(eqn1.scale, 0.9,
+                      eqn1.shift, 1.5 * UP)
+
+            zeta = round(mck_system.get_zeta(), 1)
+            eqn2 = TexMobject(r'\zeta = {c \over 2 \sqrt {m \times k}} ='+str(zeta))[0].set_color_by_gradient(BLUE_E, BLUE_A)
+            # c - 2, m - 7, k - 9
+            [eqn2[i].set_color(c) for i, c in zip([7, 2, 9], color_mck)]
+            eqn2.scale(1.2)
+            eqn2.shift(1.5*DOWN)
+            self.play(Write(eqn2[:10]))
+            self.wait()
+            target = eqn1[2].get_entries()
+            self.play(*[Transform(eqn2[i], TexMobject(j, color=k).move_to(eqn2[i].get_center())) for i, j, k in
+                        zip([7, 2, 9], [m, c, k], color_mck)],
+                      *[ReplacementTransform(target[i].copy(), eqn2[j]) for i, j in zip([0, 1, 2], [7, 2, 9])], )
+            self.wait()
+            self.play(Write(eqn2[10:]))
+            self.wait()
+            if zeta < 1:
+                zeta_text = TextMobject('Underdamped')
+            elif zeta == 1:
+                zeta_text = TextMobject('Critically\nDamped')
+            else:
+                zeta_text = TextMobject('Overdamped')
+            zeta_text.move_to(eqn2[11:].get_center()+1.5*DOWN)
+            zeta_arrow = Arrow(eqn2[11:].get_edge_center(DOWN), zeta_text.get_edge_center(UP))
+            self.play(Write(zeta_arrow), Write(zeta_text))
+            self.play(FadeOut(eqn1), FadeOut(eqn2), FadeOut(zeta_arrow))
+            self.play(zeta_text.to_corner, dict(corner=UR, buff=LARGE_BUFF),
+                      zeta_text.scale, 0.7,
+                      zeta_text.set_color_by_gradient, [GRAY, WHITE] )
+
         # and show begins
         self.play(Write(title0))
         self.play(Transform(title0, title1))
         # introducing zeta
-        m, c, k = self.MCK
-        
+        play_introduce_zeta()
+
+        # making objects
         self.play(Write(axes))
         self.play(DrawBorderThenFill(obj_group))
         # magic starts
-        self.play(mass.shift, get_point_from_value(mck_system.get_x(0)),
-                  vector_velocity.put_start_and_end_on, *(get_point_from_value(mck_system.get_x(0)) + obj_position + line_gap,
-                                                          get_point_from_value(mck_system.get_x(0) + mck_system.get_xdot(0)) + obj_position + line_gap),
-                  vector_acceleration.put_start_and_end_on, *(get_point_from_value(mck_system.get_x(0)) + obj_position - line_gap,
-                                                          get_point_from_value(mck_system.get_x(0) + mck_system.get_xddot(0)) + obj_position - line_gap),
-                  spring.put_start_and_end_on, *(wall.get_right() + line_gap,
-                                                 get_point_from_value(mck_system.get_x(0)) + obj_position + line_gap),
-                  damper.put_start_and_end_on, *(wall.get_right() - line_gap,
-                                                 get_point_from_value(mck_system.get_x(0)) + obj_position - line_gap), )
-
+        play_labels()
         # some captions
         caption_arrow = Arrow(labels['mass'].get_edge_center(DOWN), mass.get_edge_center(UP),buff=SMALL_BUFF ,
                               stroke_color=self.COLOR_MASS)
